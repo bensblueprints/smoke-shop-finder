@@ -4,22 +4,25 @@ import { MapPin, Phone, Globe, Clock, Check, ArrowRight, Mail, Navigation, Shopp
 import { useShops } from '../context/ShopContext';
 import ShopImage from './ShopImage';
 
+type ViewMode = 'list' | 'grid';
+
 interface ShopListItemProps {
   shop: Shop;
   onClick?: () => void;
-  gridView?: boolean;
+  viewMode?: ViewMode;
   userLocation?: { lat: number, lng: number } | null;
 }
 
 const ShopListItem: React.FC<ShopListItemProps> = ({ 
   shop, 
   onClick, 
-  gridView = false,
+  viewMode = 'grid',
   userLocation = null
 }) => {
   const { claimShop } = useShops();
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
   const [showMoreDetails, setShowMoreDetails] = useState(false);
+  const gridView = viewMode === 'grid';
 
   const handleClaimClick = (e: React.MouseEvent) => {
     e.stopPropagation();

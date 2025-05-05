@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useShops } from '../context/ShopContext';
-import { Shop } from '../types/shop';
+import { Shop, BusinessType } from '../types/shop';
 import ShopListItem from './ShopListItem';
 import FiltersPanel from './FiltersPanel';
 import MapView from './MapView';
@@ -11,15 +11,26 @@ import { useLocation, useNavigate } from 'react-router-dom';
 interface Filters {
   state: string;
   zipCode: string;
-  businessTypes: string[];
+  businessTypes: BusinessType[];
   hasCBD: boolean | null;
   hasKratom: boolean | null;
+  city?: string;
+  searchRadius?: number;
 }
 
 // View mode options
 type ViewMode = 'list' | 'grid';
 
-const ShopListing: React.FC = () => {
+// Props interface for ShopListing
+interface ShopListingProps {
+  showFilters?: boolean;
+  initialShopId?: string;
+}
+
+const ShopListing: React.FC<ShopListingProps> = ({ 
+  showFilters = true,
+  initialShopId
+}) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { shops, searchTerm, setSearchTerm } = useShops();
@@ -39,6 +50,16 @@ const ShopListing: React.FC = () => {
     hasCBD: null,
     hasKratom: null
   });
+
+  // Show the specific shop if initialShopId is provided
+  useEffect(() => {
+    if (initialShopId) {
+      const shopToShow = shops.find(shop => shop.id === initialShopId);
+      if (shopToShow) {
+        setSelectedShop(shopToShow);
+      }
+    }
+  }, [initialShopId, shops]);
 
   // Parse query parameters from URL
   useEffect(() => {
@@ -145,6 +166,13 @@ const ShopListing: React.FC = () => {
       filtered = filtered.filter(shop => shop.state === filters.state);
     }
 
+    // Apply city filter if a city is selected
+    if (filters.city && filters.city.trim() !== '') {
+      filtered = filtered.filter(shop => 
+        shop.city.toLowerCase() === filters.city!.toLowerCase()
+      );
+    }
+
     // Apply zip code filter with radius
     if (filters.zipCode) {
       filtered = getShopsWithinRadiusOfZip(filters.zipCode, filtered);
@@ -226,205 +254,122 @@ const ShopListing: React.FC = () => {
   const totalPages = Math.ceil(filteredShops.length / shopsPerPage);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Main search bar */}
-      <div className="mb-6 max-w-4xl mx-auto">
-        <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row items-center gap-4">
-          <div className="relative w-full">
+    <div className="relative min-h-[500px]">
+      {/* Search bar */}
+      <div className="mb-6 relative">
+        <form onSubmit={handleSearchSubmit}>
+          <div className="relative">
             <input
               type="text"
-              placeholder="Search by name, city, state, or zip code..."
               value={searchTerm}
               onChange={handleSearchChange}
-              className="w-full py-3 px-4 pr-12 rounded-full border border-gray-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500 focus:ring-opacity-30 text-lg shadow-sm transition-all duration-200"
+              placeholder="Search by shop name, city, state, or ZIP code..."
+              className="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            <button type="submit" className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-              <Search size={20} />
-            </button>
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+              <Search className="h-5 w-5" />
+            </div>
+            
+            {/* Only show mobile filters toggle when filters should be displayed */}
+            {showFilters && (
+              <button
+                type="button"
+                onClick={() => setShowMobileFilters(!showMobileFilters)}
+                className="md:hidden absolute right-3 top-1/2 transform -translate-y-1/2 bg-indigo-100 text-indigo-700 p-2 rounded-lg"
+              >
+                {showMobileFilters ? <X className="h-5 w-5" /> : <Filter className="h-5 w-5" />}
+              </button>
+            )}
           </div>
-          
-          <button 
-            type="button"
-            className="md:hidden flex items-center px-4 py-2 bg-amber-500 text-white rounded-full shadow-sm hover:bg-amber-600 transition-colors"
-            onClick={() => setShowMobileFilters(true)}
-          >
-            <Filter size={18} className="mr-2" />
-            Filters
-          </button>
         </form>
       </div>
-
-      {/* Map view - always visible */}
-      <div className="mb-6">
-        <MapView 
-          filteredShops={filteredShops.slice(0, 500)} // Limit to 500 for performance
-          userLocation={userLocation}
-          onShopClick={handleShopClick}
-        />
-      </div>
-
-      {userLocation && (
-        <div className="mb-4 text-center text-sm text-green-600">
-          <MapPin className="inline-block w-4 h-4 mr-1" /> {locationStatus}
-        </div>
-      )}
-
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Mobile filters overlay */}
-        {showMobileFilters && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden">
-            <div className="bg-white h-full w-5/6 max-w-md p-4 overflow-y-auto">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold">Filters</h3>
-                <button 
-                  onClick={() => setShowMobileFilters(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <FiltersPanel onFilterChange={handleFilterChange} />
-              <div className="mt-4">
-                <button 
-                  onClick={() => setShowMobileFilters(false)}
-                  className="w-full py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600"
-                >
-                  Apply Filters
-                </button>
-              </div>
-            </div>
+      
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Filters panel - only displayed if showFilters is true */}
+        {showFilters && (
+          <div className={`md:w-64 flex-shrink-0 ${showMobileFilters ? 'block' : 'hidden md:block'}`}>
+            <FiltersPanel currentFilters={filters} onFilterChange={handleFilterChange} />
           </div>
         )}
         
-        {/* Desktop filters sidebar */}
-        <div className="hidden lg:block lg:w-1/4">
-          <div className="sticky top-4">
-            <FiltersPanel onFilterChange={handleFilterChange} />
-          </div>
-        </div>
-        
-        <div className="lg:w-3/4">
-          <div className="bg-white rounded-lg shadow-md p-6 mb-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">
-                  {filteredShops.length} Shops Found
-                </h2>
-                {(filters.state || filters.zipCode) && (
-                  <p className="text-gray-600 mt-1">
-                    {filters.state && `Showing results in ${filters.state}`}
-                    {filters.zipCode && (filters.state ? ' near ' : 'Near ') + filters.zipCode}
-                    {filters.zipCode && ' (50 mile radius)'}
-                  </p>
-                )}
-              </div>
-              
-              <div className="mt-2 sm:mt-0 flex items-center">
-                <span className="mr-2 text-sm text-gray-500">View:</span>
-                <div className="flex border border-gray-200 rounded-md overflow-hidden">
-                  <button 
-                    onClick={() => setViewMode('list')} 
-                    className={`p-2 ${viewMode === 'list' ? 'bg-amber-500 text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}
-                    title="List view"
-                  >
-                    <List size={18} />
-                  </button>
-                  <button 
-                    onClick={() => setViewMode('grid')} 
-                    className={`p-2 ${viewMode === 'grid' ? 'bg-amber-500 text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}
-                    title="Grid view"
-                  >
-                    <Grid3x3 size={18} />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Banner ad slot */}
-            <div className="mb-6 bg-amber-50 p-4 border border-amber-100 rounded-lg text-center">
-              <p className="text-amber-800 font-medium">Premium Ad Space</p>
-              <p className="text-gray-600 text-sm">Promote your business here. Contact us for details.</p>
+        {/* Shop listings */}
+        <div className="flex-grow">
+          {/* View mode toggle */}
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <p className="text-gray-700">
+                Showing {displayedShops.length > 0 ? ((page - 1) * shopsPerPage) + 1 : 0} - {Math.min(page * shopsPerPage, filteredShops.length)} of {filteredShops.length} shops
+              </p>
             </div>
             
-            {filteredShops.length > 0 ? (
-              <div className={viewMode === 'grid' 
-                ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
-                : "space-y-4"
-              }>
-                {displayedShops.map(shop => (
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-md ${viewMode === 'list' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
+              >
+                <List className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-md ${viewMode === 'grid' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
+              >
+                <Grid3x3 className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Shop list/grid view */}
+          {displayedShops.length > 0 ? (
+            <>
+              <div className={`${viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}`}>
+                {displayedShops.map((shop) => (
                   <ShopListItem 
                     key={shop.id} 
                     shop={shop} 
-                    gridView={viewMode === 'grid'}
-                    userLocation={userLocation}
+                    viewMode={viewMode} 
                     onClick={() => handleShopClick(shop)}
+                    userLocation={userLocation}
                   />
                 ))}
               </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No shops found matching your criteria.</p>
-                <button 
-                  onClick={() => {
-                    setFilters({
-                      state: '',
-                      zipCode: '',
-                      businessTypes: [],
-                      hasCBD: null,
-                      hasKratom: null
-                    });
-                    setSearchTerm('');
-                  }}
-                  className="mt-4 px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors"
-                >
-                  Reset Filters
-                </button>
-              </div>
-            )}
-            
-            {/* Pagination */}
-            {totalPages > 1 && (
+              
+              {/* Pagination */}
               <div className="mt-8 flex justify-center">
-                <nav className="inline-flex rounded-md shadow">
+                <div className="flex space-x-2">
                   <button
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className={`px-4 py-2 text-sm font-medium rounded-l-md ${
-                      page === 1 
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
-                    } border border-gray-300`}
+                    className={`px-4 py-2 rounded-md ${page === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                   >
                     Previous
                   </button>
-                  
-                  <div className="px-4 py-2 bg-amber-500 text-white text-sm font-medium border border-amber-600">
-                    {page} of {totalPages}
-                  </div>
-                  
+                  <span className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-md">
+                    {page}
+                  </span>
                   <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className={`px-4 py-2 text-sm font-medium rounded-r-md ${
-                      page === totalPages 
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
-                    } border border-gray-300`}
+                    onClick={() => setPage(p => Math.min(Math.ceil(filteredShops.length / shopsPerPage), p + 1))}
+                    disabled={page >= Math.ceil(filteredShops.length / shopsPerPage)}
+                    className={`px-4 py-2 rounded-md ${page >= Math.ceil(filteredShops.length / shopsPerPage) ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                   >
                     Next
                   </button>
-                </nav>
+                </div>
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <div className="bg-gray-50 rounded-lg p-8 text-center">
+              <p className="text-gray-500 text-lg mb-2">No shops found</p>
+              <p className="text-gray-400">Try adjusting your search or filters to find what you're looking for.</p>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Shop Detail Modal */}
+      
+      {/* Shop detail modal */}
       {selectedShop && (
         <ShopDetailView 
           shop={selectedShop} 
-          onClose={closeShopDetail}
+          onClose={closeShopDetail} 
           userLocation={userLocation}
         />
       )}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Users, Camera, Paperclip, Smile, Search, MoreVertical, User } from 'lucide-react';
+import { Send, Users, MapPin, Paperclip, Smile, Search, MoreVertical, User, Shield } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -7,49 +7,83 @@ interface Message {
   sender: string;
   timestamp: Date;
   isCurrentUser: boolean;
+  isAiModerator?: boolean;
+}
+
+interface City {
+  name: string;
+  state: string;
 }
 
 const SeshMessenger: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: 'Hey, did you check out the new Delta 8 gummies at Green Leaf?',
-      sender: 'JaneSmoke',
-      timestamp: new Date(Date.now() - 1000 * 60 * 25),
-      isCurrentUser: false
-    },
-    {
-      id: '2',
-      text: 'Yes! They\'re amazing. The mixed fruit flavor is 🔥',
-      sender: 'CurrentUser',
-      timestamp: new Date(Date.now() - 1000 * 60 * 22),
-      isCurrentUser: true
-    },
-    {
-      id: '3',
-      text: 'I\'m thinking of organizing a sesh this weekend. Anyone interested?',
-      sender: 'BlazeRunner',
-      timestamp: new Date(Date.now() - 1000 * 60 * 15),
-      isCurrentUser: false
-    },
-    {
-      id: '4',
-      text: 'Count me in! Should we bring our own glassware?',
-      sender: 'CurrentUser',
-      timestamp: new Date(Date.now() - 1000 * 60 * 12),
-      isCurrentUser: true
-    },
-    {
-      id: '5',
-      text: 'I just ordered that new premium water pipe they have on sale. It should arrive by Friday!',
-      sender: 'CurrentUser',
-      timestamp: new Date(Date.now() - 1000 * 60 * 2),
-      isCurrentUser: true
-    }
-  ]);
+  // Sample cities
+  const popularCities: City[] = [
+    { name: 'Los Angeles', state: 'CA' },
+    { name: 'New York', state: 'NY' },
+    { name: 'Chicago', state: 'IL' },
+    { name: 'Miami', state: 'FL' },
+    { name: 'Denver', state: 'CO' },
+    { name: 'Seattle', state: 'WA' },
+    { name: 'Portland', state: 'OR' },
+    { name: 'Austin', state: 'TX' },
+    { name: 'Boston', state: 'MA' },
+    { name: 'Las Vegas', state: 'NV' }
+  ];
   
+  const [selectedCity, setSelectedCity] = useState<City>(popularCities[0]);
+  const [showCitySelector, setShowCitySelector] = useState(false);
+  const [citySearch, setCitySearch] = useState('');
+  
+  // Filter cities based on search
+  const filteredCities = citySearch.trim() === '' 
+    ? popularCities 
+    : popularCities.filter(city => 
+        city.name.toLowerCase().includes(citySearch.toLowerCase()) || 
+        city.state.toLowerCase().includes(citySearch.toLowerCase())
+      );
+  
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Sample messages for different cities
+  useEffect(() => {
+    // Clear messages when city changes
+    const cityMessages: Message[] = [
+      {
+        id: '1',
+        text: `Welcome to the ${selectedCity.name}, ${selectedCity.state} Sesh Messenger! Connect with other enthusiasts in your area.`,
+        sender: 'SeshBot',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60),
+        isCurrentUser: false,
+        isAiModerator: true
+      },
+      {
+        id: '2',
+        text: `Hey everyone! Any recommendations for good shops in ${selectedCity.name}?`,
+        sender: `${selectedCity.name}Local`,
+        timestamp: new Date(Date.now() - 1000 * 60 * 30),
+        isCurrentUser: false
+      },
+      {
+        id: '3',
+        text: `I'm new to the area, looking to connect with fellow enthusiasts!`,
+        sender: 'NewInTown',
+        timestamp: new Date(Date.now() - 1000 * 60 * 15),
+        isCurrentUser: false
+      },
+      {
+        id: '4',
+        text: 'Remember to follow community guidelines. Be respectful and supportive.',
+        sender: 'SeshBot',
+        timestamp: new Date(Date.now() - 1000 * 60 * 10),
+        isCurrentUser: false,
+        isAiModerator: true
+      }
+    ];
+    
+    setMessages(cityMessages);
+  }, [selectedCity]);
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -65,13 +99,30 @@ const SeshMessenger: React.FC = () => {
     const newMessage: Message = {
       id: Date.now().toString(),
       text: inputText,
-      sender: 'CurrentUser',
+      sender: 'You',
       timestamp: new Date(),
       isCurrentUser: true
     };
     
     setMessages([...messages, newMessage]);
     setInputText('');
+    
+    // Simulate AI moderation response for inappropriate content
+    if (inputText.toLowerCase().includes('spam') || 
+        inputText.toLowerCase().includes('bot') || 
+        inputText.toLowerCase().includes('scam')) {
+      setTimeout(() => {
+        const moderationMessage: Message = {
+          id: Date.now().toString() + '-mod',
+          text: 'Please refrain from discussing spam, bots, or scams. This helps keep our community safe and enjoyable for everyone.',
+          sender: 'SeshBot',
+          timestamp: new Date(),
+          isCurrentUser: false,
+          isAiModerator: true
+        };
+        setMessages(prevMessages => [...prevMessages, moderationMessage]);
+      }, 1000);
+    }
   };
   
   const formatTime = (date: Date) => {
@@ -87,16 +138,63 @@ const SeshMessenger: React.FC = () => {
           <div className="ml-2 bg-accent text-xs rounded-full px-2 py-0.5">LIVE</div>
         </div>
         <div className="flex items-center space-x-3">
-          <button className="p-2 hover:bg-brand-dark rounded-full transition-colors">
-            <Users size={20} />
+          <button 
+            className="flex items-center p-2 hover:bg-brand-dark rounded-lg transition-colors text-sm"
+            onClick={() => setShowCitySelector(!showCitySelector)}
+          >
+            <MapPin size={16} className="mr-1" />
+            {selectedCity.name}, {selectedCity.state}
           </button>
           <button className="p-2 hover:bg-brand-dark rounded-full transition-colors">
-            <Search size={20} />
+            <Users size={20} />
           </button>
           <button className="p-2 hover:bg-brand-dark rounded-full transition-colors">
             <MoreVertical size={20} />
           </button>
         </div>
+      </div>
+      
+      {/* City selector dropdown */}
+      {showCitySelector && (
+        <div className="border-b border-gray-200 bg-white p-3">
+          <div className="flex items-center mb-2">
+            <Search size={16} className="text-gray-400 mr-2" />
+            <input 
+              type="text" 
+              placeholder="Search for a city..."
+              className="flex-1 border-none outline-none text-sm"
+              value={citySearch}
+              onChange={(e) => setCitySearch(e.target.value)}
+            />
+          </div>
+          <div className="max-h-40 overflow-y-auto">
+            {filteredCities.map((city, index) => (
+              <div 
+                key={index}
+                className={`px-2 py-1.5 rounded cursor-pointer text-sm ${
+                  selectedCity.name === city.name && selectedCity.state === city.state
+                    ? 'bg-brand-100 text-brand-800'
+                    : 'hover:bg-gray-100'
+                }`}
+                onClick={() => {
+                  setSelectedCity(city);
+                  setShowCitySelector(false);
+                  setCitySearch('');
+                }}
+              >
+                {city.name}, {city.state}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Community announcement */}
+      <div className="px-4 py-2 bg-amber-50 border-b border-amber-100">
+        <p className="text-sm text-amber-800 flex items-center">
+          <Shield size={14} className="mr-1 text-amber-600" /> 
+          Chat with people in your area. Our AI moderators help maintain a safe environment.
+        </p>
       </div>
       
       {/* Message list */}
@@ -108,25 +206,41 @@ const SeshMessenger: React.FC = () => {
               className={`flex ${message.isCurrentUser ? 'justify-end' : 'justify-start'}`}
             >
               {!message.isCurrentUser && (
-                <div className="h-10 w-10 rounded-full bg-gray-300 flex-shrink-0 mr-3 flex items-center justify-center">
-                  <User size={20} className="text-gray-600" />
+                <div className={`h-10 w-10 rounded-full flex-shrink-0 mr-3 flex items-center justify-center ${
+                  message.isAiModerator ? 'bg-amber-100' : 'bg-gray-300'
+                }`}>
+                  {message.isAiModerator ? (
+                    <Shield size={20} className="text-amber-600" />
+                  ) : (
+                    <User size={20} className="text-gray-600" />
+                  )}
                 </div>
               )}
               <div className="max-w-[70%]">
                 {!message.isCurrentUser && (
-                  <div className="text-xs text-gray-500 mb-1">{message.sender}</div>
+                  <div className={`text-xs mb-1 ${
+                    message.isAiModerator ? 'text-amber-600 font-medium' : 'text-gray-500'
+                  }`}>
+                    {message.sender}
+                  </div>
                 )}
                 <div 
                   className={`rounded-2xl px-4 py-2 inline-block ${
                     message.isCurrentUser 
                       ? 'bg-brand text-white rounded-tr-none' 
-                      : 'bg-white border border-gray-200 rounded-tl-none'
+                      : message.isAiModerator
+                        ? 'bg-amber-50 border border-amber-200 rounded-tl-none'
+                        : 'bg-white border border-gray-200 rounded-tl-none'
                   }`}
                 >
                   <div>{message.text}</div>
                   <div 
                     className={`text-xs mt-1 ${
-                      message.isCurrentUser ? 'text-brand-100' : 'text-gray-500'
+                      message.isCurrentUser 
+                        ? 'text-brand-100' 
+                        : message.isAiModerator
+                          ? 'text-amber-400'
+                          : 'text-gray-500'
                     }`}
                   >
                     {formatTime(message.timestamp)}
@@ -145,9 +259,6 @@ const SeshMessenger: React.FC = () => {
           <div className="flex space-x-2 mr-3">
             <button className="p-2 text-gray-500 hover:text-brand rounded-full transition-colors">
               <Paperclip size={20} />
-            </button>
-            <button className="p-2 text-gray-500 hover:text-brand rounded-full transition-colors">
-              <Camera size={20} />
             </button>
             <button className="p-2 text-gray-500 hover:text-brand rounded-full transition-colors">
               <Smile size={20} />

@@ -2,6 +2,7 @@ import React from 'react';
 import { Mail, Phone, Instagram, Facebook, Twitter, Store, MapPin, Info, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useShops } from '../context/ShopContext';
+import CannabisNewsFeed from './CannabisNewsFeed';
 
 const Footer: React.FC = () => {
   // Get current year for copyright
@@ -100,6 +101,9 @@ const Footer: React.FC = () => {
         </div>
       </div>
       
+      {/* Cannabis News Feed */}
+      <CannabisNewsFeed maxItems={6} />
+      
       {/* All states section */}
       <div className="bg-gray-800 py-8">
         <div className="container mx-auto px-4">
@@ -133,7 +137,7 @@ const Footer: React.FC = () => {
           <div>
             <div className="flex items-center mb-4">
               <Store className="h-6 w-6 text-amber-500 mr-2" />
-              <h3 className="text-xl font-bold">ShopFinder</h3>
+              <h3 className="text-xl font-bold">Smoke Shop Finder</h3>
             </div>
             <p className="text-gray-300 mb-4">
               The premier directory for tobacco, vape, and CBD shops across the United States.
@@ -213,7 +217,7 @@ const Footer: React.FC = () => {
         
         <div className="border-t border-gray-800 mt-8 pt-8 text-sm text-gray-400">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p>&copy; {currentYear} ShopFinder. All rights reserved.</p>
+            <p>&copy; {currentYear} Smoke Shop Finder. All rights reserved.</p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <Link to="/privacy" className="hover:text-amber-500 transition-colors">Privacy Policy</Link>
               <Link to="/terms" className="hover:text-amber-500 transition-colors">Terms of Service</Link>

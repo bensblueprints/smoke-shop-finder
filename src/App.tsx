@@ -23,6 +23,8 @@ import Cart from './components/Cart';
 import CartButton from './components/CartButton';
 import { CartProvider } from './context/CartContext';
 import ShopifyProvider from './context/ShopifyContext';
+import GlobalCitizenTravelsPage from './pages/GlobalCitizenTravelsPage';
+import VerifyCard from './pages/api/verify-card';
 
 import { Store, Search, Map, Clock, Check, TrendingUp, Gift, Sparkles, ShoppingBag, Package, FireExtinguisher, Leaf, MessageCircle } from 'lucide-react';
 
@@ -290,60 +292,98 @@ const EventsPage: React.FC = () => {
   );
 };
 
+// Shop page for individual shop display
+const Shop: React.FC = () => {
+  const location = useLocation();
+  const shopId = location.pathname.split('/shop/')[1];
+  
+  return (
+    <div className="container mx-auto px-4 py-10">
+      <h1 className="text-3xl font-bold mb-6 text-neutral">Shop Details</h1>
+      <p className="text-gray-600 mb-8">Viewing shop with ID: {shopId}</p>
+      
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <ShopListing showFilters={false} initialShopId={shopId} />
+      </div>
+    </div>
+  );
+};
+
+// Shops listing page
+const ShopsPage: React.FC = () => {
+  return (
+    <div className="container mx-auto px-4 py-10">
+      <h1 className="text-3xl font-bold mb-6 text-neutral">Find Shops Near You</h1>
+      <ShopListing showFilters={true} />
+    </div>
+  );
+};
+
+// Chat page with Sesh Messenger
+const ChatPage: React.FC = () => {
+  return (
+    <div className="container mx-auto px-4 py-10">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8 text-neutral">Sesh Messenger</h1>
+        
+        {/* Vape Girl Image */}
+        <div className="mb-8 rounded-xl overflow-hidden shadow-md bg-gradient-to-r from-indigo-50 to-pink-50 p-2">
+          <img 
+            src="https://images.unsplash.com/photo-1574039334535-8792cb28eb6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80" 
+            alt="Girl with vape" 
+            className="w-full h-auto rounded-lg object-cover"
+          />
+          <p className="text-xs text-center text-gray-500 mt-1 italic">Enjoy responsibly</p>
+        </div>
+        
+        <SeshMessenger />
+      </div>
+    </div>
+  );
+};
+
 function App() {
   return (
-    <BrowserRouter>
+    <ShopProvider>
       <CartProvider>
-        <ShopProvider>
-          <ShopifyProvider>
+        <ShopifyProvider>
+          <BrowserRouter>
+            <CartButton />
             <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/add-listing" element={<AddListingPage />} />
-              <Route path="/listing-submitted" element={<ListingSubmittedPage />} />
-              <Route path="/admin/dashboard" element={<DashboardPage />} />
-              <Route path="/membership" element={<MembershipPage />} />
+              <Route path="/admin">
+                <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="import" element={<ImportPage />} />
+              </Route>
               
-              <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
+              <Route path="/auth">
+                <Route path="login" element={<LoginPage />} />
+              </Route>
+              
+              <Route path="/listings">
+                <Route path="add" element={<AddListingPage />} />
+                <Route path="submitted" element={<ListingSubmittedPage />} />
+              </Route>
+              
+              {/* Shop paths */}
+              <Route path="/shop/:id" element={<MainLayout><Shop /></MainLayout>} />
+              <Route path="/shops" element={<MainLayout><ShopsPage /></MainLayout>} />
+              
+              {/* Membership and verification */}
+              <Route path="/membership" element={<MembershipPage />} />
+              <Route path="/verify-card" element={<VerifyCard />} />
+              
+              {/* Other main routes */}
+              <Route path="/global-travels" element={<MainLayout><GlobalCitizenTravelsPage /></MainLayout>} />
               <Route path="/products" element={<MainLayout><ProductsPage /></MainLayout>} />
               <Route path="/events" element={<MainLayout><EventsPage /></MainLayout>} />
-              <Route path="/shops" element={
-                <MainLayout>
-                  <div className="container mx-auto px-4 py-10">
-                    <ShopListing />
-                  </div>
-                </MainLayout>
-              } />
-              <Route path="/chat" element={
-                <MainLayout>
-                  <div className="container mx-auto px-4 py-10">
-                    <div className="max-w-3xl mx-auto">
-                      <h1 className="text-3xl font-bold mb-8 text-neutral">Sesh Messenger</h1>
-                      
-                      {/* Vape Girl Image */}
-                      <div className="mb-8 rounded-xl overflow-hidden shadow-md bg-gradient-to-r from-indigo-50 to-pink-50 p-2">
-                        <img 
-                          src="https://images.unsplash.com/photo-1574039334535-8792cb28eb6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80" 
-                          alt="Girl with vape" 
-                          className="w-full h-auto rounded-lg object-cover"
-                        />
-                        <p className="text-xs text-center text-gray-500 mt-1 italic">Enjoy responsibly</p>
-                      </div>
-                      
-                      <SeshMessenger />
-                    </div>
-                  </div>
-                </MainLayout>
-              } />
+              <Route path="/chat" element={<MainLayout><ChatPage /></MainLayout>} />
+              
+              <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
             </Routes>
-            
-            {/* Cart button - fixed position */}
-            <div className="fixed bottom-20 right-6 z-40">
-              <CartButton />
-            </div>
-          </ShopifyProvider>
-        </ShopProvider>
+          </BrowserRouter>
+        </ShopifyProvider>
       </CartProvider>
-    </BrowserRouter>
+    </ShopProvider>
   );
 }
 

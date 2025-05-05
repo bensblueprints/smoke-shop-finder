@@ -3,6 +3,7 @@ import { useShops } from '../context/ShopContext';
 import { BusinessType, businessTypeLabels } from '../types/shop';
 import { Filter, RefreshCw, MapPin, Leaf, Activity, ChevronDown, ChevronUp, X, Ruler, ShoppingBag } from 'lucide-react';
 import CityFilter from './CityFilter';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 // Debounce helper function
 const useDebounce = <T,>(value: T, delay: number): T => {
@@ -21,8 +22,20 @@ const useDebounce = <T,>(value: T, delay: number): T => {
   return debouncedValue;
 };
 
+interface Filters {
+  state: string;
+  zipCode: string;
+  businessTypes: BusinessType[];
+  hasCBD: boolean | null;
+  hasKratom: boolean | null;
+  city?: string;
+  searchRadius?: number;
+  productCategories?: string[];
+}
+
 interface FiltersPanelProps {
-  onFilterChange: (filters: any) => void;
+  onFilterChange: (filters: Filters) => void;
+  currentFilters?: Filters;
 }
 
 // Complete list of US states with their abbreviations
@@ -127,20 +140,22 @@ const productCategories = {
   ]
 };
 
-const FiltersPanel: React.FC<FiltersPanelProps> = ({ onFilterChange }) => {
+const FiltersPanel: React.FC<FiltersPanelProps> = ({ onFilterChange, currentFilters }) => {
   const { shops } = useShops();
-  const [selectedState, setSelectedState] = useState<string>('');
-  const [selectedCity, setSelectedCity] = useState<string>('');
-  const [zipCode, setZipCode] = useState<string>('');
-  const [businessTypes, setBusinessTypes] = useState<BusinessType[]>([]);
-  const [hasCBD, setHasCBD] = useState<boolean | null>(null);
-  const [hasKratom, setHasKratom] = useState<boolean | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [selectedState, setSelectedState] = useState<string>(currentFilters?.state || '');
+  const [selectedCity, setSelectedCity] = useState<string>(currentFilters?.city || '');
+  const [zipCode, setZipCode] = useState<string>(currentFilters?.zipCode || '');
+  const [businessTypes, setBusinessTypes] = useState<BusinessType[]>(currentFilters?.businessTypes || []);
+  const [hasCBD, setHasCBD] = useState<boolean | null>(currentFilters?.hasCBD !== undefined ? currentFilters.hasCBD : null);
+  const [hasKratom, setHasKratom] = useState<boolean | null>(currentFilters?.hasKratom !== undefined ? currentFilters.hasKratom : null);
   const [isOpen, setIsOpen] = useState(true);
   const [showCityFilter, setShowCityFilter] = useState(false);
-  const [searchRadius, setSearchRadius] = useState<number>(50);
+  const [searchRadius, setSearchRadius] = useState<number>(currentFilters?.searchRadius || 50);
   
   // Product filters
-  const [selectedProductCategories, setSelectedProductCategories] = useState<string[]>([]);
+  const [selectedProductCategories, setSelectedProductCategories] = useState<string[]>(currentFilters?.productCategories || []);
   
   // UI section toggles - all expanded by default
   const [stateOpen, setStateOpen] = useState(true);
@@ -206,6 +221,50 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({ onFilterChange }) => {
     processFilters();
   }, [filtersObject, onFilterChange]);
 
+  // Update URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    
+    if (filtersObject.state) {
+      params.set('state', filtersObject.state);
+    }
+    
+    if (filtersObject.city) {
+      params.set('city', filtersObject.city);
+    }
+    
+    if (filtersObject.zipCode) {
+      params.set('zip', filtersObject.zipCode);
+    }
+    
+    const queryString = params.toString();
+    if (queryString) {
+      navigate(`/?${queryString}`, { replace: true });
+    } else if (location.search) {
+      navigate('/', { replace: true });
+    }
+  }, [filtersObject.state, filtersObject.city, filtersObject.zipCode, navigate, location.search]);
+
+  // Parse URL query parameters
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const stateParam = params.get('state');
+    const cityParam = params.get('city');
+    const zipParam = params.get('zip');
+    
+    if (stateParam && stateParam !== selectedState) {
+      setSelectedState(stateParam);
+    }
+    
+    if (cityParam && cityParam !== selectedCity) {
+      setSelectedCity(cityParam);
+    }
+    
+    if (zipParam && zipParam !== zipCode) {
+      setZipCode(zipParam);
+    }
+  }, [location.search, selectedState, selectedCity, zipCode]);
+
   const toggleFilters = useCallback(() => {
     setIsOpen(prev => !prev);
   }, []);
@@ -214,8 +273,8 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({ onFilterChange }) => {
     // Run this asynchronously
     setTimeout(() => {
       setSelectedState(stateCode);
-      setZipCode(''); // Clear zip code when state changes
       setSelectedCity(''); // Clear city when state changes
+      setZipCode(''); // Clear zip code when state changes
       if (stateCode) {
         setShowCityFilter(true);
       }
@@ -223,9 +282,17 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({ onFilterChange }) => {
   }, []);
 
   const handleCitySelect = useCallback((city: string) => {
+    // Update the city filter and ensure it's properly applied
     setSelectedCity(city);
     setShowCityFilter(false);
-  }, []);
+    
+    // Make sure the parent component knows about the city change immediately
+    // This ensures city filtering gets applied properly
+    onFilterChange({
+      ...filtersObject,
+      city
+    });
+  }, [filtersObject, onFilterChange]);
 
   const handleZipCodeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -269,18 +336,31 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({ onFilterChange }) => {
   }, []);
 
   const resetFilters = useCallback(() => {
-    // Run asynchronously
-    setTimeout(() => {
-      setSelectedState('');
-      setSelectedCity('');
-      setZipCode('');
-      setSearchRadius(50);
-      setBusinessTypes([]);
-      setHasCBD(null);
-      setHasKratom(null);
-      setSelectedProductCategories([]);
-    }, 0);
-  }, []);
+    // Reset all filter states
+    setSelectedState('');
+    setSelectedCity('');
+    setZipCode('');
+    setSearchRadius(50);
+    setBusinessTypes([]);
+    setHasCBD(null);
+    setHasKratom(null);
+    setSelectedProductCategories([]);
+    
+    // Immediately notify the parent component of the reset
+    onFilterChange({
+      state: '',
+      city: '',
+      zipCode: '',
+      searchRadius: 50,
+      businessTypes: [],
+      hasCBD: null,
+      hasKratom: null,
+      productCategories: []
+    });
+    
+    // Clear URL parameters
+    navigate('/', { replace: true });
+  }, [onFilterChange, navigate]);
 
   // Calculate active filters count
   const activeFiltersCount = useMemo(() => {
@@ -304,6 +384,11 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({ onFilterChange }) => {
     searchRadius,
     selectedProductCategories.length
   ]);
+
+  // Function to clear the selected city
+  const clearCityFilter = useCallback(() => {
+    setSelectedCity('');
+  }, []);
 
   return (
     <div className="my-4 bg-white rounded-lg shadow-lg border border-purple-100">
